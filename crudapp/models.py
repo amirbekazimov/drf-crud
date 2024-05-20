@@ -2,7 +2,7 @@ from django.db import models
 
 
 class Book(models.Model):
-    title = models.CharField(max_length=100)
+    title = models.CharField(max_length=100, db_index=True)
     price = models.DecimalField(max_digits=5, decimal_places=2)
     isBestSeller = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,9 +1,10 @@
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import permission_classes, authentication_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -13,12 +14,24 @@ from .serializers import BookSerializer, AuthorSerializer
 
 
 class BookList(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    filter_backends = [DjangoFilterBackend]
+    filter_fields = ['author', 'title']
 
     @swagger_auto_schema(
         responses={200: openapi.Response('BookSerializer')},
     )
     def get(self, request):
-        queryset = Book.objects.select_related('author').all()
+        queryset = Book.objects.all()
+        author = request.query_params.get('author')
+        title = request.query_params.get('title')
+
+        if author:
+            queryset = queryset.filter(author__id=author)
+        if title:
+            queryset = queryset.filter(title__icontains=title)
+
         serializer = BookSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -38,7 +51,9 @@ class BookList(APIView):
         }
     )
     def post(self, request):
-        serializer = BookSerializer(data=request.data)
+        if not request.user.is_authenticated or request.user.role != 'author':
+            return Response({'error': 'You are not an author'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = BookSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -72,6 +87,8 @@ class BookDetail(APIView):
     )
     def put(self, request, pk):
         queryset = Book.objects.get(pk=pk)
+        if not request.user.is_authenticated or request.user.role != 'author' or request.user != queryset.author:
+            return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = BookSerializer(queryset, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -83,8 +100,21 @@ class BookDetail(APIView):
     )
     def delete(self, request, pk):
         queryset = Book.objects.get(pk=pk)
+        if not request.user.is_authenticated or request.user.role != 'author' or request.user != queryset.author:
+            return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
         queryset.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GetAuthorBooks(APIView):
+
+    @swagger_auto_schema(
+        responses={200: openapi.Response('BookSerializer')},
+    )
+    def get(self, request):
+        queryset = Book.objects.filter(author=request.user).select_related('author').all()
+        serializer = BookSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # author views

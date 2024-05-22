@@ -30,7 +30,6 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     def post(self, request):
-        print('hello world')
         serializer = UserLoginSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             username = serializer.validated_data['username']

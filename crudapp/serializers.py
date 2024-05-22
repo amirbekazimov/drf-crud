@@ -1,7 +1,6 @@
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.serializers import ModelSerializer
 
+from authapp.serializers import UserSerializer
 from .models import Book, Author
 
 
@@ -16,7 +15,7 @@ class AuthorSerializer(ModelSerializer):
 
 
 class BookSerializer(ModelSerializer):
-    author = AuthorSerializer()
+    author = UserSerializer(read_only=True)
 
     class Meta:
         model = Book
@@ -27,3 +26,7 @@ class BookSerializer(ModelSerializer):
             'isBestSeller',
             'author',
         )
+
+    def create(self, validated_data):
+        validated_data['author'] = self.context['request'].user
+        return super().create(validated_data)

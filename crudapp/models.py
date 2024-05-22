@@ -1,4 +1,5 @@
 from django.db import models
+from authapp.models import CustomUser
 
 
 class Book(models.Model):
@@ -7,7 +8,7 @@ class Book(models.Model):
     isBestSeller = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    author = models.ForeignKey('Author', on_delete=models.CASCADE, null=True, blank=True)
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.title
